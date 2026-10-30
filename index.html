@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>НВЕ-монитор: задачи акселератора</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: одна колонка ~820px. Каждый раздел = «Коротко» → детали. Липкая лента разделов. Таблицы на телефоне превращаются в карточки */
+:root{
+  --bg:#F4F7F6; --surface:#FFFFFF; --ink:#14201E; --muted:#566663; --line:#D7E0DD;
+  --accent:#0E5E6F; --accent-soft:#E2EFF1;
+  --ok:#2C8A4B; --ok-soft:#E3F2E8; --warn:#9A6A05; --warn-soft:#FBF0D9; --bad:#B83C2B; --bad-soft:#F9E3DF;
+  --f-display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1615; --surface:#17211F; --ink:#E4ECEA; --muted:#97A7A3; --line:#2A3835;
+  --accent:#62B8CA; --accent-soft:#16323A;
+  --ok:#5DC181; --ok-soft:#173225; --warn:#E3B04A; --warn-soft:#352A12; --bad:#EC7462; --bad-soft:#3A1E1A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1615; --surface:#17211F; --ink:#E4ECEA; --muted:#97A7A3; --line:#2A3835;
+  --accent:#62B8CA; --accent-soft:#16323A;
+  --ok:#5DC181; --ok-soft:#173225; --warn:#E3B04A; --warn-soft:#352A12; --bad:#EC7462; --bad-soft:#3A1E1A; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:820px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{padding-block:40px 24px;display:flex;flex-direction:column;gap:10px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(24px,4.5vw,32px);line-height:1.2;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:500;font-size:clamp(20px,3vw,24px);line-height:1.25;margin:0;text-wrap:balance}
+h3{font-size:17px;font-weight:600;margin:0}
+p{margin:0;max-width:66ch}
+.lead{color:var(--muted);font-size:17px}
+a{color:var(--accent)}
+b,strong{font-weight:600}
+.small{font-size:14px;color:var(--muted)}
+
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-block:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding-block:8px;scrollbar-width:thin}
+nav.toc a{flex:none;text-decoration:none;color:var(--ink);font-size:14px;padding:6px 10px;border-radius:6px;white-space:nowrap}
+nav.toc a:hover,nav.toc a:focus-visible{background:var(--accent-soft);outline:none}
+nav.toc a b{font-family:var(--f-mono);font-weight:500;color:var(--accent);margin-right:5px}
+
+main{display:flex;flex-direction:column;gap:72px;padding-block:32px 72px}
+section{display:flex;flex-direction:column;gap:20px;scroll-margin-top:64px}
+.sec-head{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:start;border-top:2px solid var(--ink);padding-top:16px}
+.sec-num{grid-row:span 2;font-family:var(--f-display);font-weight:600;font-size:34px;line-height:1;color:var(--accent);min-width:1.2em}
+.due{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.due b{color:var(--ink);font-weight:500}
+.sub{display:flex;flex-direction:column;gap:12px}
+
+/* «Коротко» */
+.tldr{background:var(--accent-soft);border-radius:10px;padding:14px 18px;display:flex;flex-direction:column;gap:6px}
+.tldr .lbl{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.tldr p{font-size:16.5px}
+
+/* Главное */
+.summary{display:flex;flex-direction:column;gap:18px}
+.steps{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--line);margin-left:6px}
+.step{position:relative;padding:0 0 16px 20px}
+.step::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+.step:last-child{padding-bottom:0}
+.step .d{font-family:var(--f-mono);font-size:13.5px;color:var(--accent);font-weight:500}
+.step p{font-size:15.5px}
+
+/* таблицы */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--line)}
+th{font-size:13px;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.date{font-family:var(--f-mono);white-space:nowrap;font-size:14px}
+tr.group td{background:var(--bg);font-weight:600;font-size:14px;color:var(--accent)}
+tr.total td{font-weight:600}
+td:first-child{font-weight:500}
+@media (max-width:640px){
+  .stack table,.stack tbody,.stack tr,.stack td{display:block;width:100%}
+  .stack thead{display:none}
+  .stack tr{border-bottom:1px solid var(--line);padding:10px 14px}
+  .stack tr:last-child{border-bottom:0}
+  .stack td{border:0;padding:2px 0;text-align:left!important;white-space:normal!important}
+  .stack td[data-label]:not(:first-child)::before{content:attr(data-label);display:block;font-size:12px;color:var(--muted);font-weight:500;margin-top:6px}
+  .stack td:first-child{font-size:16px;font-weight:600}
+  .stack td:empty{display:none}
+}
+
+.q{display:inline-block;font-family:var(--f-mono);font-size:11.5px;padding:1px 6px;border-radius:4px;background:var(--warn-soft);color:var(--warn);white-space:nowrap;font-weight:500}
+.pill{display:inline-block;font-size:13px;font-weight:600;padding:2px 9px;border-radius:999px}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)}
+
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.grid3,.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card.rec{border:2px solid var(--accent)}
+.card .badge{align-self:flex-start;font-size:12px;font-weight:600;color:var(--surface);background:var(--accent);padding:2px 8px;border-radius:4px}
+.card h3 .tag{font-family:var(--f-display);color:var(--accent);margin-right:8px}
+.card ul,.list{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.pm{list-style:none;padding:0!important}
+.pm li{padding-left:22px;position:relative}
+.pm li::before{position:absolute;left:0;font-weight:700;font-family:var(--f-mono)}
+.pm li.plus::before{content:"+";color:var(--ok)} .pm li.minus::before{content:"−";color:var(--bad)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:15px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-variant-numeric:tabular-nums}
+
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px}
+.node{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 9px;line-height:1.35}
+.node.hl{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.node.new{border-style:dashed;border-color:var(--accent)}
+.arr{color:var(--muted);font-family:var(--f-mono)}
+
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:12px 16px;border-radius:0 8px 8px 0;font-size:15.5px;display:flex;flex-direction:column;gap:4px}
+.note.warn{border-color:var(--warn)}
+.note .lbl{font-size:13px;font-weight:600;color:var(--muted)}
+.decision{background:var(--surface);border:2px solid var(--accent);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.decision .lbl{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:500}
+.decision strong{font-family:var(--f-display);font-weight:500;font-size:18px;line-height:1.35}
+
+.btn{align-self:flex-start;font:inherit;font-size:14px;padding:7px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--accent)} .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.mod{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mod code{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:500}
+.mod div{color:var(--muted)}
+.mod.grp{background:transparent;border:0;padding:6px 0 0;grid-column:1/-1;font-size:13px;font-weight:600;color:var(--muted)}
+.pipe{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;counter-reset:st}
+@media (max-width:640px){.pipe{grid-template-columns:1fr 1fr}}
+.pipe .st{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;min-width:0}
+.pipe .st b{display:block;font-size:13px;color:var(--accent)}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.checks li{display:flex;gap:10px;align-items:flex-start}
+.checks li::before{content:"";flex:none;width:16px;height:16px;margin-top:4px;border:2px solid var(--accent);border-radius:4px}
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:t}
+.timeline li{counter-increment:t;display:flex;gap:10px;align-items:flex-start;font-size:15px}
+.timeline li::before{content:counter(t);flex:none;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600;display:grid;place-items:center;margin-top:1px}
+.bigno{font-family:var(--f-display);font-size:24px;font-weight:500;color:var(--accent);line-height:1.1}
+.term{border-bottom:1px dotted var(--muted)}
+footer{border-top:1px solid var(--line);padding-block:20px 40px;color:var(--muted);font-size:14px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+
+<header class="top wrap">
+  <div class="eyebrow">НВЕ-монитор · NeuroSensis · АлтГУ 2026</div>
+  <h1>Задачи акселератора: что делаем до 06.11</h1>
+  <p class="lead">Девять задач из плана акселератора. Смета стенда, повязка, программа, Bluetooth и фильтры уже есть на <a href="https://berengow.github.io/nve-monitor/#home" target="_blank" rel="noopener">сайте проекта</a>. Здесь только то, чего там нет.</p>
+</header>
+
+<nav class="toc" aria-label="Разделы">
+  <div class="wrap">
+    <a href="#main"><b>★</b>Главное</a>
+    <a href="#fix"><b>!</b>Питч</a>
+    <a href="#team"><b>1</b>Команда</a>
+    <a href="#it"><b>2</b>IT-план</a>
+    <a href="#variants"><b>3</b>Варианты</a>
+    <a href="#pilot"><b>4</b>Пилот</a>
+    <a href="#bom"><b>5</b>Смета</a>
+    <a href="#scope"><b>6</b>Границы</a>
+    <a href="#ca"><b>7</b>Клиенты</a>
+    <a href="#market"><b>8</b>Рынок</a>
+    <a href="#experts"><b>9</b>Эксперты</a>
+    <a href="#contacts"><b>10</b>Кому звонить</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ============ ГЛАВНОЕ ============ -->
+<section id="main" class="summary">
+  <div class="sec-head"><span class="sec-num">★</span><h2>Главное за минуту</h2><div class="due">прочитать всем</div></div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Что решаем</h3>
+      <ul class="list">
+        <li>До конца января делаем <b>программу + синхро-хаб</b>: маленькую коробочку, которая ставит общую метку времени на оба прибора.</li>
+        <li>Повязку собираем, только если к 31.01.2027 выполнены условия из раздела 6.</li>
+        <li>Первые клиенты: <b>спорт и вузы</b>. Медицина пока как партнёр: для неё прибор нужно регистрировать.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Ключевые числа</h3>
+      <dl class="kv">
+        <dt>MVP с хабом</dt><dd><b>8–13 тыс. ₽</b></dd>
+        <dt>Запрос в питче</dt><dd><b>40–60 тыс. ₽</b> (сейчас там 66,5)</dd>
+        <dt>Первый грант</dt><dd>«Студенческий стартап», <b>1 млн ₽</b>, весна 2027</dd>
+        <dt>Цель за 3 года</dt><dd><b>15–20 клиентов</b>, 5–6,6 млн ₽</dd>
+      </dl>
+    </div>
+  </div>
+  <h3>Сроки</h3>
+  <div class="steps">
+    <div class="step"><div class="d">31.10, пятница</div><p>Табличка ролей разослана. Список людей для интервью. Встреча с преподавательницей по ЛАЗМЕ.</p></div>
+    <div class="step"><div class="d">03.11</div><p>Черновики: IT-план, смета, варианты A/B/C, записка о границах, план пилота. Мелкие задачи у всех начаты.</p></div>
+    <div class="step"><div class="d">03–05.11</div><p>5–7 интервью с будущими клиентами.</p></div>
+    <div class="step"><div class="d">05.11</div><p>Финалы документов, резюме интервью, рынок, дата пилота согласована, отчёт лидеру.</p></div>
+    <div class="step"><div class="d">06.11, созвон</div><p>Выбираем вариант продукта и границы проекта.</p></div>
+    <div class="step"><div class="d">10–13.11</div><p>Пилот-0 в лаборатории.</p></div>
+  </div>
+</section>
+
+<!-- ============ FIX ============ -->
+<section id="fix">
+  <div class="sec-head"><span class="sec-num">!</span><h2>Что поправить в питче</h2><div class="due">до <b>05.11</b> · Робертус Т.</div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>Шесть мест в презентации, где цифры или слова расходятся с реальностью. Эксперт заметит их первым.</p></div>
+  <div class="tw stack"><table>
+    <thead><tr><th>Где</th><th>Что не так</th><th>Как поправить</th></tr></thead>
+    <tbody>
+      <tr><td>Слайд 11, запрос денег</td><td>Просим 66,5 тыс. ₽, а смета на сайте 16,8–26,5 тыс. ₽</td><td>Показать расшифровку: 2 повязки + синхро-хаб + стенд + запас 20 % ≈ 40–60 тыс. ₽ (раздел 5). Или снизить запрос</td></tr>
+      <tr><td>Слайд 5, конкуренты</td><td>Нейрософт и ЛАЗМА названы конкурентами, хотя мы работаем на их приборах</td><td>Перенести их в партнёры. Настоящие конкуренты: носимые ЭЭГ-повязки BrainBit, Neiry, Callibri (РФ), Muse (импорт) и спортивные системы по пульсу Firstbeat, Polar, Whoop</td></tr>
+      <tr><td>Слайды 3 и 6, продукт</td><td>Продаём «носимый комплекс», а MVP — программа на чужих приборах</td><td>Говорить: «сейчас программа + синхро-хаб, повязка в дорожной карте» (раздел 6)</td></tr>
+      <tr><td>Новые клиенты</td><td>Инсульт, болезни сердца, ПТСР — это медицина. Прибор для них нужно регистрировать как медизделие</td><td>Писать «оценка функционального состояния, не диагноз». Медицину пока брать как научных партнёров</td></tr>
+      <tr><td>Название</td><td>В питче NeuroSensis, на сайте «НВЕ-монитор»</td><td>Выбрать одно. Если продукт и команда называются по-разному, сказать это явно</td></tr>
+      <tr><td>Задача 5, «КП в Ноософт»</td><td>Похоже на опечатку</td><td>Скорее всего, имелся в виду <b>Нейрософт</b> (производитель ЭЭГ). «Ноософт» — IT-партнёр, у него КП на разработку, а не на детали</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ 1 TEAM ============ -->
+<section id="team">
+  <div class="sec-head"><span class="sec-num">1</span><h2>Кто что делает</h2><div class="due">табличка <b>31.10</b> · мелкие задачи <b>03.11</b> · отчёт <b>05.11</b></div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>У каждого одна задача по роли и одно интервью или эксперт. Лидер правит черновик и рассылает 31.10. Юриста в команде нет — его нужно найти.</p></div>
+  <div class="tw stack"><table id="t-team">
+    <thead><tr><th>Кто</th><th>Роль</th><th>Задача по роли</th><th>Интервью или эксперт</th><th>Срок</th></tr></thead>
+    <tbody>
+      <tr><td>Деревцова Ю.</td><td>лидер</td><td>Разослать табличку; договориться с лабораторией о дате пилота; вести пятничный созвон</td><td>Наставник акселератора</td><td class="date">31.10 / 05.11</td></tr>
+      <tr><td>Давыдик Е.</td><td>тестировщик</td><td>Чек-лист и журнал пилота-0; прогнать первые файлы через скрипт вместе с IT</td><td>Тренер или спортврач клуба</td><td class="date">03.11</td></tr>
+      <tr><td>Блохина Е.</td><td>советник</td><td>Встреча с преподавательницей, которая работала с ЛАЗМОЙ: программа, версия, выгрузка, сколько минут пишет</td><td>Эта же преподавательница</td><td class="date">31.10</td></tr>
+      <tr><td>Пятков М.</td><td>производитель</td><td>Найти вход для метки на «Нейрон-Спектре»: какой разъём и какое напряжение можно подавать. Собрать кнопку на макетке</td><td>Инженер Нейрософт (по телефону)</td><td class="date">03.11</td></tr>
+      <tr><td>Робертус Т.</td><td>спикер</td><td>Поправить слайды по разделу «Что поправить в питче»</td><td>Врач Алтайского ВФД (спорт)</td><td class="date">05.11</td></tr>
+      <tr><td>Воронцова Э.</td><td>контент</td><td>Шаблон резюме интервью, собрать резюме от всех</td><td>Кардиолог, кардиореабилитация</td><td class="date">03–05.11</td></tr>
+      <tr><td>Богатырева Б.</td><td>дизайнер</td><td>Нарисовать схему вариантов A/B/C в стиле питча</td><td>Психолог, работающий с ветеранами</td><td class="date">05.11</td></tr>
+      <tr><td>Бадиков С.</td><td>администратор</td><td>Список контактов по сегментам; общая папка data/ с доступами</td><td>Реабилитолог сосудистого центра (инсульт)</td><td class="date">31.10</td></tr>
+      <tr><td>Герц А.</td><td>исследователь</td><td>Сценарии пилота-0; 3–5 статей о связи мозга и сосудов для наших сегментов</td><td>Невролог или научрук кафедры</td><td class="date">03.11</td></tr>
+      <tr><td>IT</td><td>программист</td><td>IT-план v0.1, смета в трёх вариантах, страница A/B/C</td><td>Разработчик «Ноософт»</td><td class="date">03.11 / 05.11</td></tr>
+      <tr><td>Юрист <span class="q">найти</span></td><td>юрист</td><td>Согласие добровольца, закон о персональных данных (152-ФЗ), риск «медизделия», требования грантов</td><td>—</td><td class="date">05.11</td></tr>
+    </tbody>
+  </table></div>
+  <button class="btn" type="button" data-copy="t-team">Скопировать таблицу для Excel</button>
+  <div class="note"><span class="lbl">Как проверяем</span>Каждую пятницу 15 минут. Каждый отвечает на три вопроса: что сделано, что мешает, что дальше. Лидер записывает итог одной строкой в ту же таблицу.</div>
+</section>
+
+<!-- ============ 2 IT ============ -->
+<section id="it">
+  <div class="sec-head"><span class="sec-num">2</span><h2>IT-план v0.1</h2><div class="due">черновик <b>03.11</b> · финал <b>05.11</b> · IT</div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>Программа из 12 частей, у каждой одна работа. Главное неизвестное — формат файла ЛАЗМЫ. План на 8 недель: в ноябре скрипт работает на живых файлах, в декабре — тесты, обработка всей папки, первая модель и запуск на Raspberry Pi.</p></div>
+  <p class="small">Стек: Python 3.10+, MNE, SciPy, Pandas, matplotlib или Plotly, pytest. Что считает программа, уже описано на сайте (раздел «Программа»).</p>
+
+  <div class="sub">
+    <h3>Путь данных — 6 шагов</h3>
+    <div class="pipe">
+      <div class="st"><b>1. Чтение</b>файлы ЭЭГ (EDF) и ЛАЗМЫ (CSV/TXT)</div>
+      <div class="st"><b>2. Синхронизация</b>кнопка → хлопок → поиск похожих участков</div>
+      <div class="st"><b>3. Очистка</b>убрать сеть 50 Гц и движения</div>
+      <div class="st"><b>4. Признаки</b>альфа-ритм, кровоток, NADH/FAD раз в секунду</div>
+      <div class="st"><b>5. Связь</b>мозг ↔ сосуды с учётом задержки 0–8 с</div>
+      <div class="st"><b>6. Отчёт</b>таблица, график, «светофор»</div>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h3>Из каких частей состоит программа</h3>
+    <div class="mods">
+      <div class="mod grp">Чтение</div>
+      <div class="mod"><code>Recording</code><div>Общий формат записи для обоих приборов: сигнал, частота, каналы, время старта, метки</div></div>
+      <div class="mod"><code>EegReader</code><div>Читает EDF/EDF+/BDF, достаёт метки, находит каналы O1/O2 и канал кнопки</div></div>
+      <div class="mod"><code>LdfReader</code><div>Читает CSV/TXT ЛАЗМЫ: сам угадывает разделитель, запятую в числах и кодировку cp1251</div></div>
+      <div class="mod grp">Обработка</div>
+      <div class="mod"><code>Synchronizer</code><div>Совмещает записи: по кнопке, по меткам, по хлопку или по похожим участкам. Пишет, каким способом и насколько уверенно</div></div>
+      <div class="mod"><code>EegCleaner</code><div>Убирает сеть 50 Гц, оставляет 1–30 Гц, отмечает выбросы</div></div>
+      <div class="mod"><code>LdfCleaner</code><div>Сглаживает кровоток, убирает скачки</div></div>
+      <div class="mod"><code>FeatureExtractor</code><div>Считает альфа-ритм, тета/альфа, кровоток раз в секунду</div></div>
+      <div class="mod"><code>NvuAnalyzer</code><div>Считает связь мозга и сосудов и находит лучшую задержку</div></div>
+      <div class="mod"><code>TrafficLight</code><div>Выдаёт цвет по порогам; сравнивает человека с его же утренней нормой</div></div>
+      <div class="mod grp">Выход и запуск</div>
+      <div class="mod"><code>ReportWriter</code><div>Сохраняет result.csv, .png, .json, .npz</div></div>
+      <div class="mod"><code>Pipeline</code><div>Соединяет все шаги; один вход для файлов, папки и Bluetooth</div></div>
+      <div class="mod"><code>cli.py</code><div>Запуск из командной строки: пара файлов, папка, демо</div></div>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h3>Какие файлы ждёт и выдаёт программа</h3>
+    <div class="tw stack"><table>
+      <thead><tr><th>Файл</th><th>Что в нём должно быть</th><th>Что программа проверяет</th></tr></thead>
+      <tbody>
+        <tr><td>eeg.edf</td><td>Отведения O1, O2 (лучше ещё F3, F4), частота от 250 Гц, канал кнопки или метки оператора</td><td>Длительность, частоту, имена каналов, наличие меток</td></tr>
+        <tr><td>ldf.csv / .txt</td><td>Время + перфузия (кровоток); по желанию лимфоток, NADH, FAD, температура</td><td>Что время идёт по порядку, нет ли пропусков, частоту около 10–20 Гц, кодировку</td></tr>
+        <tr><td>meta.json</td><td>Анкета сессии (образец на сайте)</td><td>Код вместо ФИО, оценка сонливости KSS от 1 до 9</td></tr>
+        <tr><td>markers.csv <span class="q">по желанию</span></td><td>Ручные метки оператора: время, прибор, подпись</td><td>Что метки внутри записи</td></tr>
+        <tr><td>features.csv <span class="q">новый</span></td><td>Одна строка на сессию: все признаки + цвет. Это вход для модели</td><td>Нет повторов человек + сессия</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note warn"><span class="lbl">Главное неизвестное</span>Формат выгрузки ЛАЗМЫ. Пока нет реального файла, читаем «любую таблицу с колонкой времени». После встречи с преподавательницей положить один настоящий файл в проект как образец для тестов.</div>
+  </div>
+
+  <div class="sub">
+    <h3>Как проверяем, что программа работает</h3>
+    <ul class="list">
+      <li><b>Сдвиг.</b> Сдвигаем ЛДФ на 0,5 и 1 с — программа должна найти сдвиг с ошибкой не больше 0,1 с.</li>
+      <li><b>Искусственные данные.</b> ЭЭГ с заданным альфа-ритмом и ЛДФ с пульсом и шумом — проверяем фильтры и «светофор».</li>
+      <li><b>Эталонные файлы.</b> Записи пилота-0 с известным ответом. Ответ не должен меняться без причины.</li>
+      <li><b>Плохие файлы.</b> Нет колонки, длины различаются больше чем на 10 %, пустой файл — понятное сообщение вместо падения.</li>
+      <li><b>Скорость.</b> 8-минутная запись — до 30 с на ноутбуке и до 60 с на Raspberry Pi.</li>
+      <li><b>Автоматически.</b> Все проверки запускаются сами при каждом изменении кода (GitHub Actions).</li>
+    </ul>
+  </div>
+
+  <div class="sub">
+    <h3>План на 8 недель</h3>
+    <div class="tw stack"><table>
+      <thead><tr><th>Неделя</th><th>Что делаем</th><th>Готово, когда</th></tr></thead>
+      <tbody>
+        <tr><td class="date">03–09.11</td><td>Читаем настоящие файлы обоих приборов</td><td>Скрипт открывает живой EDF и файл ЛАЗМЫ и показывает длительность, частоту, каналы</td></tr>
+        <tr><td class="date">10–16.11</td><td>Пилот-0, синхронизация на живых данных</td><td>Метки кнопки совпадают с точностью до 0,1 с</td></tr>
+        <tr><td class="date">17–23.11</td><td>Фильтры и движения на живых данных</td><td>Альфа при закрытых глазах хотя бы в 1,5 раза выше, чем при открытых</td></tr>
+        <tr><td class="date">24–30.11</td><td>Связь мозг ↔ сосуды с задержкой, отчёт</td><td>Пережатие руки манжетой видно на графике кровотока</td></tr>
+        <tr><td class="date">01–07.12</td><td>Автоматические проверки, проверка config</td><td>Все проверки из списка выше проходят</td></tr>
+        <tr><td class="date">08–14.12</td><td>Обработка всей папки → features.csv</td><td>Одна команда обрабатывает всю папку data/</td></tr>
+        <tr><td class="date">15–21.12</td><td>Первая простая модель</td><td>Точность посчитана по схеме «один человек на проверке», пусть даже низкая</td></tr>
+        <tr><td class="date">22–28.12</td><td>Запуск на Raspberry Pi, IT-план v0.2</td><td>Демо-запись обработана на Pi, время замерено</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="sub">
+    <h3>Что изменится на Raspberry Pi</h3>
+    <ul class="list">
+      <li><b>Памяти хватит.</b> 21 канал × 500 Гц × 8 мин ≈ 5 млн чисел ≈ 40 МБ, а у Pi Zero 2 W 512 МБ.</li>
+      <li><b>Графики только в файл</b>, без окон на экране (matplotlib, режим Agg).</li>
+      <li><b>Запасной вариант чтения.</b> Если MNE долго ставится, читаем EDF через pyedflib — для этого чтение и вынесено в отдельную часть.</li>
+      <li><b>Поток с повязки.</b> Храним последние 30 с и раз в секунду считаем тем же Pipeline.</li>
+      <li><b>Автозапуск</b> при включении (systemd), Bluetooth через bleak.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 3 VARIANTS ============ -->
+<section id="variants">
+  <div class="sec-head"><span class="sec-num">3</span><h2>Что продаём: три варианта</h2><div class="due">к <b>03.11</b> · обсуждаем <b>06.11</b> · IT</div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>A — только программа. B — программа + синхро-хаб. C — носимая повязка. Рекомендуем B: это настоящее устройство за 3–5 тыс. ₽, готовое за 2–3 месяца.</p></div>
+  <div class="grid3">
+    <div class="card">
+      <h3><span class="tag">A</span>Только программа</h3>
+      <div class="flow"><span class="node">ЭЭГ → файл</span><span class="arr">+</span><span class="node">ЛДФ → файл</span><span class="arr">→</span><span class="node hl">наша программа</span><span class="arr">→</span><span class="node">отчёт</span></div>
+      <dl class="kv"><dt>Железо</dt><dd>не нужно</dd><dt>Цена MVP</dt><dd>2–8 тыс. ₽</dd><dt>Срок</dt><dd>1–2 мес.</dd><dt>Риск</dt><dd><span class="pill p-ok">низкий</span></dd></dl>
+      <ul class="pm"><li class="plus">быстро, дёшево, демо на настоящих данных</li><li class="plus">программу можно зарегистрировать</li><li class="minus">покупателю нужны оба прибора, таких мало</li><li class="minus">синхронизация хлопком неточная</li></ul>
+    </div>
+    <div class="card rec">
+      <span class="badge">Рекомендуем</span>
+      <h3><span class="tag">B</span>Программа + синхро-хаб</h3>
+      <div class="flow"><span class="node new">кнопка хаба</span><span class="arr">→</span><span class="node">метка в ЭЭГ</span><span class="arr">+</span><span class="node">метка в программе ЛАЗМЫ</span><span class="arr">→</span><span class="node hl">наша программа</span></div>
+      <dl class="kv"><dt>Железо</dt><dd>плата ESP32-S3, оптопара, кабель</dd><dt>Цена MVP</dt><dd>3–5 тыс. ₽ + стенд</dd><dt>Срок</dt><dd>2–3 мес.</dd><dt>Риск</dt><dd><span class="pill p-warn">средний</span></dd></dl>
+      <ul class="pm"><li class="plus">настоящее устройство на питч</li><li class="plus">сам ставит метки раз в минуту — часы двух ноутбуков не расходятся</li><li class="plus">подходит к любой ЭЭГ со входом для метки</li><li class="minus">покупателю всё равно нужны оба прибора</li></ul>
+    </div>
+    <div class="card">
+      <h3><span class="tag">C</span>Носимая повязка</h3>
+      <div class="flow"><span class="node">электроды</span><span class="arr">+</span><span class="node">датчик пульса на ухе</span><span class="arr">→</span><span class="node">ESP32</span><span class="arr">→</span><span class="node">Bluetooth</span><span class="arr">→</span><span class="node hl">наша программа</span></div>
+      <dl class="kv"><dt>Железо</dt><dd>описано на сайте</dd><dt>Цена MVP</dt><dd>12–19 тыс. ₽</dd><dt>Срок</dt><dd>4–6 мес.</dd><dt>Риск</dt><dd><span class="pill p-bad">высокий</span></dd></dl>
+      <ul class="pm"><li class="plus">самый сильный «вау» и самый большой рынок</li><li class="minus">сухие электроды шумят</li><li class="minus">неясно, заменяет ли датчик пульса лазерный датчик ЛАЗМЫ</li><li class="minus">нужен схемотехник и регистрация медизделия</li></ul>
+    </div>
+  </div>
+  <div class="note"><span class="lbl">Как хаб ставит метку на оба прибора</span>Для ноутбука ЛАЗМЫ хаб выглядит как USB-клавиатура. Одно нажатие кнопки сразу подаёт импульс в энцефалограф и «нажимает» клавишу метки в программе ЛАЗМЫ. <span class="q">проверить</span> есть ли в программе ЛАЗМЫ такая клавиша. Если нет — оператор ставит метку вручную, как сейчас.</div>
+  <div class="decision">
+    <span class="lbl">Рекомендация</span>
+    <p><b>На питче:</b> живое демо A на настоящей записи + синхро-хаб B в руках + повязка C как модель и дорожная карта.</p>
+    <p><b>В грант:</b> закладываем все три, но деньги в первую очередь на B и записи добровольцев. C — второй этап, после проверки 31.01 (раздел 6).</p>
+  </div>
+</section>
+
+<!-- ============ 4 PILOT ============ -->
+<section id="pilot">
+  <div class="sec-head"><span class="sec-num">4</span><h2>Пилот-0: проверяем, что всё работает вместе</h2><div class="due">план <b>03.11</b> · дата <b>05.11</b> · пилот <b>10–13.11</b></div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>Два человека из команды, два сценария по 12–15 минут. Цель — не наука, а ответ на вопрос: приборы, выгрузка и скрипт работают вместе? Основной протокол на 20 добровольцев уже на сайте. Согласие подписывают и члены команды.</p></div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Сценарий 1 · проверка связки, 15 мин</h3>
+      <ol class="timeline">
+        <li>Старт обеих записей, кнопка №1</li>
+        <li>3 мин глаза закрыты, 3 мин открыты — альфа-ритм должен заметно меняться</li>
+        <li>Хлопок — запасной способ синхронизации</li>
+        <li>Пережатие руки манжетой 3 мин по методике ЛАЗМЫ — кровоток падает, потом резко растёт. Проводит преподаватель</li>
+        <li>Кнопка №2 в середине и №3 в конце</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>Сценарий 2 · короткая нагрузка, 12 мин</h3>
+      <ol class="timeline">
+        <li>Анкета сонливости KSS до, кнопка</li>
+        <li>2 мин покоя</li>
+        <li>5 мин теста Струпа</li>
+        <li>3 мин отдыха</li>
+        <li>KSS и опросник нагрузки NASA-TLX после, кнопка</li>
+      </ol>
+    </div>
+  </div>
+  <p class="small">Зачем такие сценарии: в них ответ известен заранее. При закрытых глазах альфа растёт, при пережатии руки кровоток падает. Если программа это видит — она считает правильно.</p>
+  <div class="sub">
+    <h3>Пилот удался, если</h3>
+    <div class="tw stack"><table>
+      <thead><tr><th>Что проверяем</th><th>Порог</th><th>Если не вышло</th></tr></thead>
+      <tbody>
+        <tr><td>Оба файла выгрузились и читаются скриптом</td><td>да</td><td>Описать формат, написать чтение под него</td></tr>
+        <tr><td>Метки кнопки №1 и №3 совпадают на двух приборах</td><td>до 0,1 с</td><td>Учитывать расхождение часов, ставить метки чаще</td></tr>
+        <tr><td>Альфа: глаза закрыты / открыты</td><td>от 1,5 раза</td><td>Проверить электроды O1/O2 и фильтры</td></tr>
+        <tr><td>Пережатие видно на кровотоке</td><td>падение от 50 %</td><td>Проверить колонку и масштаб ЛДФ</td></tr>
+        <tr><td>Доля испорченной ЭЭГ</td><td>до 20 %</td><td>Контакт электродов, меньше движений</td></tr>
+        <tr><td>Время обработки</td><td>до 30 с</td><td>Искать медленное место в скрипте</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Журнал пилота — одна строка на запись</h3>
+      <ul class="list"><li>дата, код испытуемого, сценарий</li><li>кто был оператором</li><li>время старта ЭЭГ и ЛДФ, время каждой кнопки</li><li>сопротивление электродов</li><li>что пошло не так</li><li>имена файлов</li></ul>
+    </div>
+    <div class="card">
+      <h3>Взять с собой</h3>
+      <ul class="checks"><li>кнопку на Arduino и кабель</li><li>флешку для выгрузки</li><li>гель, спирт, салфетки</li><li>секундомер</li><li>распечатки журнала и согласия</li><li>манжету тонометра</li></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 BOM ============ -->
+<section id="bom">
+  <div class="sec-head"><span class="sec-num">5</span><h2>Смета и откуда деньги</h2><div class="due">черновик <b>03.11</b> · финал <b>05.11</b> · IT</div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>A стоит 5–8 тыс. ₽, B — 8–13 тыс. ₽, C — 17–27 тыс. ₽ на комплект. В питче честнее просить 40–60 тыс. ₽ с расшифровкой. Деньги сейчас — микрогрант и вуз, весной 2027 — «Студенческий стартап» на 1 млн ₽.</p></div>
+  <p class="small">Состав стенда и повязки по позициям — на сайте (раздел «Смета»). Метка <span class="q">±</span> значит: цена может сильно отличаться, сверить перед покупкой.</p>
+  <div class="tw"><table id="t-bom">
+    <thead><tr><th>Позиция</th><th class="num">Цена, ₽</th></tr></thead>
+    <tbody>
+      <tr class="group"><td colspan="2">A · только программа</td></tr>
+      <tr><td>Расходники для тестов</td><td class="num">2 000–3 000</td></tr>
+      <tr><td>Регистрация программы в Роспатенте (пошлина) <span class="q">±</span></td><td class="num">~3 000–5 000</td></tr>
+      <tr class="total"><td>Итого A</td><td class="num">5 000–8 000</td></tr>
+      <tr class="group"><td colspan="2">B · программа + синхро-хаб</td></tr>
+      <tr><td>Плата Seeed XIAO ESP32-S3 (притворяется клавиатурой и даёт импульс)</td><td class="num">900–1 300</td></tr>
+      <tr><td>2 оптопары PC817, резисторы, кнопка, светодиод</td><td class="num">150–250</td></tr>
+      <tr><td>Кабель ко входу ЭЭГ <span class="q">± разъём не известен</span></td><td class="num">500–1 500</td></tr>
+      <tr><td>USB-изолятор ADuM3160 (защита: ноутбук ЛДФ подключён к прибору на человеке)</td><td class="num">800–1 200</td></tr>
+      <tr><td>Корпус на 3D-принтере, плата, разъёмы</td><td class="num">700–1 000</td></tr>
+      <tr><td>Стенд этапа 1 с сайта (расходники, микрофон)</td><td class="num">4 800–7 600</td></tr>
+      <tr class="total"><td>Итого B</td><td class="num">7 850–12 850</td></tr>
+      <tr class="group"><td colspan="2">C · носимая повязка</td></tr>
+      <tr><td>Этап 1 + этап 2 с сайта, один комплект</td><td class="num">16 800–26 500</td></tr>
+      <tr><td>из них усилитель ЭЭГ ADS1299 <span class="q">± клон или оригинал</span> и сухие электроды <span class="q">±</span></td><td class="num">7 500–11 500</td></tr>
+      <tr class="total"><td>Итого C</td><td class="num">16 800–26 500</td></tr>
+      <tr class="group"><td colspan="2">Запрос в питче</td></tr>
+      <tr class="total"><td>B + 2 повязки (вторая — запасная и для сверки) + запас 20 %</td><td class="num">~40 000–60 000</td></tr>
+    </tbody>
+  </table></div>
+  <button class="btn" type="button" data-copy="t-bom">Скопировать смету для Excel</button>
+  <div class="grid2">
+    <div class="card">
+      <h3>Где покупать</h3>
+      <ul class="list">
+        <li><b>Чип и Дип, Компэл</b> — детали в РФ, с документами для вуза</li>
+        <li><b>Mouser</b> — оригинальный ADS1299, долго ждать</li>
+        <li><b>AliExpress</b> — дёшево, 3–5 недель, без документов: для гранта не годится</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Какие КП запросить</h3>
+      <ul class="list">
+        <li><b>Нейрософт</b> — кабель и допустимый сигнал на вход для метки</li>
+        <li><b>ЛАЗМА</b> — программа и формат выгрузки</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub">
+    <h3>Откуда деньги — по порядку</h3>
+    <div class="tw stack"><table>
+      <thead><tr><th>Источник</th><th>Сумма</th><th>Условия</th><th>Когда и на что</th></tr></thead>
+      <tbody>
+        <tr><td>Росмолодёжь, «Микрогранты» <span class="q">проверить</span></td><td>до 100 тыс. ₽</td><td>14–35 лет, физлицо</td><td><span class="pill p-ok">сейчас</span> покупка MVP</td></tr>
+        <tr><td>Гранты и конкурсы АлтГУ, акселератор <span class="q">уточнить в вузе</span></td><td>—</td><td>студенты вуза</td><td><span class="pill p-ok">сейчас</span> расходники, печать</td></tr>
+        <tr><td>ФСИ «Студенческий стартап»</td><td>1 млн ₽</td><td>12 мес., без своих вложений; победитель регистрирует ООО. Приём 2026 закрылся 18.03</td><td><span class="pill p-warn">весна 2027</span> B + C + записи</td></tr>
+        <tr><td>Грант молодым предпринимателям, «Мой бизнес»</td><td>100–500 тыс. ₽</td><td>до 25 лет, нужно ИП или ООО, свои вложения от 25 %</td><td><span class="pill p-warn">после ООО</span></td></tr>
+        <tr><td>ФСИ «Старт-1»</td><td>до 4–5 млн ₽</td><td>малое предприятие; источники называют разные суммы — сверить на fasie.ru</td><td><span class="pill p-bad">2028</span> коммерческий образец</td></tr>
+        <tr><td>Партнёр «Ноософт»</td><td>работой</td><td>разработка, письмо поддержки, вложения</td><td>программа и заявки</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ============ 6 SCOPE ============ -->
+<section id="scope">
+  <div class="sec-head"><span class="sec-num">6</span><h2>Границы проекта: сужаемся или нет</h2><div class="due">записка <b>03.11</b> · решение <b>06.11</b></div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>До 31.01.2027 делаем программу + синхро-хаб. Повязку не бросаем, но собираем её только при выполнении шести условий ниже.</p></div>
+  <div class="tw stack"><table>
+    <thead><tr><th>Критерий</th><th>1 · только программа</th><th>2 · программа + хаб</th><th>3 · программа + повязка</th></tr></thead>
+    <tbody>
+      <tr><td>Деньги</td><td data-label="1 · только программа"><span class="pill p-ok">5–8 тыс.</span></td><td><span class="pill p-ok">8–13 тыс.</span></td><td><span class="pill p-warn">17–27 тыс. на комплект</span></td></tr>
+      <tr><td>Срок до демо</td><td><span class="pill p-ok">1–2 мес.</span></td><td><span class="pill p-ok">2–3 мес.</span></td><td><span class="pill p-bad">4–6 мес.</span></td></tr>
+      <tr><td>Риски</td><td><span class="pill p-ok">формат файла ЛАЗМЫ</span></td><td><span class="pill p-warn">вход для метки на ЭЭГ</span></td><td><span class="pill p-bad">шум, датчик пульса ≠ ЛДФ, нет схемотехника</span></td></tr>
+      <tr><td>Питч</td><td><span class="pill p-bad">«просто скрипт»</span></td><td><span class="pill p-ok">устройство в руках</span></td><td><span class="pill p-ok">сильный</span></td></tr>
+      <tr><td>Гранты</td><td><span class="pill p-warn">мало для ФСИ</span></td><td><span class="pill p-ok">подходит</span></td><td><span class="pill p-ok">подходит</span></td></tr>
+      <tr><td>Клиенты</td><td><span class="pill p-bad">лаборатории с двумя приборами</span></td><td><span class="pill p-warn">лаборатории, клиники</span></td><td><span class="pill p-ok">спорт, реабилитация</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="decision">
+    <span class="lbl">Решение</span>
+    <strong>До 31.01.2027 делаем вариант 2 — программа + синхро-хаб</strong>
+    <p>На питче повязка остаётся целью. На стенде параллельно записываем датчик пульса рядом с ЛАЗМОЙ, чтобы проверить, может ли он её заменить.</p>
+  </div>
+  <div class="sub">
+    <h3>Возвращаемся к повязке, если к 31.01.2027:</h3>
+    <ul class="checks">
+      <li>Пилот-0 прошёл: синхронизация до 0,1 с, альфа реагирует на закрытые глаза.</li>
+      <li>Есть от 20 записей, и связь альфа ↔ кровоток видна хотя бы у половины людей.</li>
+      <li>Датчик пульса совпадает с ЛАЗМОЙ на стенде: r ≥ 0,7.</li>
+      <li>В команде есть схемотехник (свой или от «Ноософт»).</li>
+      <li>Есть деньги на 2 комплекта (микрогрант, вуз или партнёр).</li>
+      <li>Хотя бы 2 организации письменно подтвердили интерес к повязке.</li>
+    </ul>
+  </div>
+  <div class="grid3">
+    <div class="card"><div class="bigno">5–6 ✓</div><p>Собираем повязку в феврале, как на сайте.</p></div>
+    <div class="card"><div class="bigno">3–4 ✓</div><p>Собираем один комплект для сверки со стендом.</p></div>
+    <div class="card"><div class="bigno">0–2 ✓</div><p>Остаёмся на варианте 2 и копим записи.</p></div>
+  </div>
+</section>
+
+<!-- ============ 7 CA ============ -->
+<section id="ca">
+  <div class="sec-head"><span class="sec-num">7</span><h2>Клиенты: четыре сегмента и их боли</h2><div class="due">список <b>31.10</b> · интервью <b>03–05.11</b> · резюме <b>05.11</b></div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>Говорим с 5–7 людьми из четырёх сегментов. Наша догадка: продавать проще всего спорту и вузам, а медицину брать в научные партнёры. Интервью должны это подтвердить или опровергнуть.</p></div>
+  <p class="small">Всё в таблице — догадки. После интервью колонку «Чего не хватает» переписать словами самих собеседников.</p>
+  <div class="tw stack"><table>
+    <thead><tr><th>Сегмент</th><th>С кем говорим</th><th>Как оценивают сейчас</th><th>Чего не хватает</th><th>Регистрация прибора</th></tr></thead>
+    <tbody>
+      <tr><td>Реабилитация после инсульта</td><td>реабилитолог, невролог сосудистого центра</td><td>шкалы (Рэнкин, Бартел), ЭЭГ, УЗИ сосудов</td><td>не видно, когда пациент перегружен на занятии</td><td><span class="pill p-bad">нужна</span></td></tr>
+      <tr><td>Болезни сердца и сосудов</td><td>кардиолог, кардиореабилитация</td><td>тесты с нагрузкой, Холтер, давление</td><td>не оценивают ни мелкие сосуды, ни усталость мозга</td><td><span class="pill p-bad">нужна</span></td></tr>
+      <tr><td>Участники боевых действий, ПТСР</td><td>психолог, психиатр госпиталя ветеранов, фонд «Защитники Отечества»</td><td>опросники, беседа</td><td>нет объективного показателя стресса и истощения</td><td><span class="pill p-warn">зависит от формулировки</span></td></tr>
+      <tr><td>Спорт высших достижений</td><td>врач ВФД, тренер, спортивный психолог</td><td>пульс и его вариабельность, лактат, опросники</td><td>не видно усталости мозга</td><td><span class="pill p-ok">не нужна, если «оценка состояния»</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Вопросы для интервью, 20–30 мин</h3>
+      <p class="small">Спрашиваем о прошлом опыте, а не «купили бы вы». Продукт в начале не показываем.</p>
+      <ol class="timeline">
+        <li>Расскажите про последний случай, когда нужно было понять, восстановился человек или нет. Как решали?</li>
+        <li>Какими приборами и шкалами пользуетесь? Что из них реально помогает?</li>
+        <li>Когда вы ошиблись с оценкой состояния? Чем это закончилось?</li>
+        <li>Каких данных не хватает? Что хотели бы видеть, но не видите?</li>
+        <li>Какие приборы есть у ваших пациентов или спортсменов дома: тонометр, браслет, пульсоксиметр?</li>
+        <li>Сколько времени уходит на оценку одного человека?</li>
+        <li>Кто решает о покупке оборудования и из какого бюджета?</li>
+        <li>Сколько стоило последнее купленное оборудование для оценки состояния?</li>
+        <li>С кем ещё нам стоит поговорить?</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>Резюме одного интервью — пять строк</h3>
+      <ol class="timeline">
+        <li>Кто: роль и организация</li>
+        <li>Как оценивают состояние сейчас</li>
+        <li>Главная боль — цитатой</li>
+        <li>Какие приборы уже есть</li>
+        <li>Кто решает о покупке и сколько тратят</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 MARKET ============ -->
+<section id="market">
+  <div class="sec-head"><span class="sec-num">8</span><h2>Рынок и продвижение</h2><div class="due">к <b>05.11</b></div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>Один клиент в первый год приносит около 330 тыс. ₽. Реальная цель за 3 года — 15–20 клиентов в Сибири, то есть 5–6,6 млн ₽. Это сходится с прогнозом в питче.</p></div>
+  <p class="small">Все числа — оценка. Чек клиента в первый год: комплекс 150 тыс. ₽ + подписка 15 тыс. ₽ × 12 месяцев = <b>330 тыс. ₽</b>.</p>
+  <div class="grid3">
+    <div class="card"><span class="small">TAM · весь рынок России</span><div class="bigno">≈ 875 млн ₽</div><p class="small">≈ 2 650 организаций: 1 000 клубов, 500 медцентров, 200 киберкоманд (из питча) + ≈ 700 сосудистых центров, ≈ 100 центров реабилитации ветеранов, ≈ 150 вузов и НИИ <span class="q">оценка</span></p></div>
+    <div class="card"><span class="small">SAM · доступный нам рынок, Сибирь</span><div class="bigno">≈ 100 млн ₽</div><p class="small">≈ 300 организаций. В Сибирском округе живёт ≈ 11 % населения России — взяли эту долю от всех сегментов</p></div>
+    <div class="card"><span class="small">SOM · реально возьмём за 3 года</span><div class="bigno">5–6,6 млн ₽</div><p class="small">15–20 организаций в Барнауле и Сибири. Сходится с прогнозом питча на 2-й год (~5 млн)</p></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Конкуренты</h3>
+      <ul class="list">
+        <li><b>Носимые ЭЭГ:</b> BrainBit, Neiry, Callibri (РФ), Muse — видят только мозг, без сосудов</li>
+        <li><b>Спорт:</b> Firstbeat, Polar, Whoop — видят только пульс</li>
+        <li><b>Лабораторные приборы:</b> Нейрософт, ЛАЗМА, Moor — стационарно и раздельно; для нас партнёры</li>
+        <li><b>Наше отличие:</b> смотрим, насколько согласованно работают мозг и сосуды, а не на один сигнал</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Как продаём</h3>
+      <ul class="list">
+        <li><b>Пилоты:</b> бесплатно 1–2 месяца → письмо → продажа</li>
+        <li><b>Партнёры:</b> дилеры Нейрософт и ЛАЗМЫ продают хаб и программу как дополнение</li>
+        <li><b>Напрямую:</b> клубы, ВФД, вузы Барнаула</li>
+        <li><b>Конференции:</b> спортивная медицина, физиология, микроциркуляция</li>
+        <li><b>Тендеры:</b> только после регистрации медизделия</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note"><span class="lbl">Модель</span>Комплекс 150–500 тыс. ₽ + подписка 10–20 тыс. ₽/мес. Себестоимость хаба ≈ 4–5 тыс. ₽, повязки ≈ 15–20 тыс. ₽.</div>
+  <div class="sub">
+    <h3>Допущения и риски</h3>
+    <ul class="list">
+      <li>Число сосудистых и реабилитационных центров — грубая оценка. Проверить по открытым реестрам.</li>
+      <li>Готовы ли платить 15 тыс. ₽ в месяц — не проверено. Это главный вопрос интервью.</li>
+      <li>Без регистрации медизделия медицинская часть рынка закрыта. Реально доступны спорт, киберспорт и наука — примерно половина SAM.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 9 EXPERTS ============ -->
+<section id="experts">
+  <div class="sec-head"><span class="sec-num">9</span><h2>Экспертная труба</h2><div class="due">текст задачи обрезан, план собран по смыслу</div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>Ведём каждого эксперта по пяти шагам — от списка до письма поддержки. Цель к весне 2027: 3 письма поддержки для гранта.</p></div>
+  <div class="flow" style="font-size:15px"><span class="node">Список</span><span class="arr">→</span><span class="node">Первый контакт</span><span class="arr">→</span><span class="node">Встреча 30 мин</span><span class="arr">→</span><span class="node">Письменный отзыв</span><span class="arr">→</span><span class="node hl">Письмо поддержки</span></div>
+  <div class="tw stack"><table id="t-exp">
+    <thead><tr><th>Эксперт</th><th>Что спрашиваем</th><th>Что получаем</th><th>Кто ведёт</th><th>Где сейчас</th></tr></thead>
+    <tbody>
+      <tr><td>Преподавательница, работавшая с ЛАЗМОЙ</td><td>программа, выгрузка, методики проб</td><td>файл-образец, участие в пилоте</td><td>Блохина Е.</td><td>встреча 31.10</td></tr>
+      <tr><td>Врач Алтайского ВФД</td><td>как оценивают утомление спортсменов, нужен ли наш отчёт</td><td>отзыв, площадка пилота</td><td>Робертус Т.</td><td>список</td></tr>
+      <tr><td>Невролог или реабилитолог</td><td>есть ли смысл оценивать связь мозга и сосудов после инсульта</td><td>научная поддержка идеи</td><td>Герц А.</td><td>список</td></tr>
+      <tr><td>Инженер Нейрософт</td><td>вход для метки, допустимый сигнал, интерес к партнёрству</td><td>схема подключения, партнёр</td><td>Пятков М.</td><td>список</td></tr>
+      <tr><td>«Ноософт»</td><td>устройство программы, совместная заявка</td><td>письмо, вложения</td><td>IT</td><td>контакт есть</td></tr>
+      <tr><td>Наставник акселератора</td><td>питч, выбор варианта A/B/C</td><td>отзыв на питч</td><td>Деревцова Ю.</td><td>контакт есть</td></tr>
+    </tbody>
+  </table></div>
+  <button class="btn" type="button" data-copy="t-exp">Скопировать таблицу для Excel</button>
+</section>
+
+<!-- ============ 10 CONTACTS ============ -->
+<section id="contacts">
+  <div class="sec-head"><span class="sec-num">10</span><h2>Кому звонить: больницы, центры, организации</h2><div class="due">список <b>31.10</b> · звонки <b>03–05.11</b> · ведёт Бадиков С.</div></div>
+  <div class="tldr"><span class="lbl">Коротко</span><p>26 организаций: 18 в Барнауле и крае, 6 в Новосибирске, 2 производителя приборов. Начинаем с приоритета 1 — по одной организации на каждого, кто ведёт интервью (раздел 1). Цель — 5–7 интервью и 2–3 эксперта.</p></div>
+  <div class="grid3">
+    <div class="card"><span class="pill p-ok" style="align-self:flex-start">1 · звоним первыми</span><p class="small">Барнаул, прямо наш сегмент, есть знакомые или уже партнёр</p></div>
+    <div class="card"><span class="pill p-warn" style="align-self:flex-start">2 · вторая волна</span><p class="small">Барнаул и край, нужен выход через вуз или знакомых</p></div>
+    <div class="card"><span class="pill p-bad" style="align-self:flex-start">3 · Новосибирск и эксперты</span><p class="small">Для научной оценки и писем, разговор по видеосвязи</p></div>
+  </div>
+  <div class="note warn"><span class="lbl">Перед звонком</span>Телефоны и адреса взяты из открытых источников и агрегаторов (Яндекс, 2ГИС, сайт Соцфонда). Перед звонком сверить на официальном сайте. Где телефона нет — искать организацию по названию в 2ГИС или на сайте Минздрава региона.</div>
+
+  <div class="tw stack"><table id="t-contacts">
+    <thead><tr><th>Организация</th><th>Приоритет</th><th>Сегмент</th><th>С кем говорить</th><th>Зачем</th><th>Контакт</th><th>Кто ведёт</th></tr></thead>
+    <tbody>
+      <tr class="group"><td colspan="7">Барнаул и Алтайский край</td></tr>
+      <tr><td>КГБУЗ «Алтайский врачебно-физкультурный диспансер», Барнаул</td><td><span class="pill p-ok">1</span></td><td>спорт</td><td>главный врач, спортивный врач</td><td>интервью, пилот, письмо (уже в партнёрах на слайде 8)</td><td>ул. Автотранспортная, 41А · +7 (3852) 46-12-62 <span class="q">проверить</span></td><td>Робертус Т.</td></tr>
+      <tr><td>Клинический лечебно-реабилитационный центр «Территория здоровья», Барнаул</td><td><span class="pill p-ok">1</span></td><td>инсульт, реабилитация, участники СВО</td><td>невролог, врач-реабилитолог</td><td>интервью, площадка для пилота</td><td>ok.ru/mtsrterrit · 2ГИС</td><td>Бадиков С.</td></tr>
+      <tr><td>КГБУЗ «Алтайский краевой госпиталь для ветеранов войн», Барнаул — координационный центр помощи участникам СВО</td><td><span class="pill p-ok">1</span></td><td>ПТСР, реабилитация</td><td>медицинский психолог, реабилитолог, руководитель координационного центра</td><td>интервью, эксперт</td><td>2ГИС, сайт Минздрава края</td><td>Богатырева Б.</td></tr>
+      <tr><td>Фонд «Защитники Отечества», Алтайский филиал</td><td><span class="pill p-ok">1</span></td><td>ПТСР</td><td>психолог, социальный координатор</td><td>интервью: какие боли у ветеранов, к кому идут</td><td>пр-т Ленина, 5 · +7 (3852) 56-67-77 · fzo.gov.ru</td><td>Богатырева Б.</td></tr>
+      <tr><td>КГБУЗ «Алтайский краевой кардиологический диспансер», Барнаул</td><td><span class="pill p-ok">1</span></td><td>сердце и сосуды</td><td>кардиолог, врач функциональной диагностики</td><td>интервью</td><td>ул. Малахова, 46 · 2ГИС</td><td>Воронцова Э.</td></tr>
+      <tr><td>АлтГУ — кафедры и лаборатории по реабилитации и восстановительной медицине</td><td><span class="pill p-ok">1</span></td><td>наука</td><td>научрук, руководители лабораторий</td><td>эксперт, оборудование, письмо от вуза</td><td>через свою кафедру · rnd.asu.ru</td><td>Герц А.</td></tr>
+      <tr><td>КГБУЗ «Краевая клиническая больница», Барнаул</td><td><span class="pill p-warn">2</span></td><td>инсульт, сердце, реабилитация участников СВО</td><td>невролог сосудистого отделения, реабилитолог</td><td>интервью, эксперт</td><td>2ГИС, сайт Минздрава края</td><td>Бадиков С.</td></tr>
+      <tr><td>Алтайский государственный медицинский университет (АГМУ)</td><td><span class="pill p-warn">2</span></td><td>наука, медицина</td><td>кафедры неврологии, кардиологии, медицинской реабилитации</td><td>научный эксперт, отзыв, совместные статьи</td><td>сайт АГМУ, раздел «Структура»</td><td>Герц А.</td></tr>
+      <tr><td>Алтайский краевой вертеброневрологический центр, Барнаул</td><td><span class="pill p-warn">2</span></td><td>неврология</td><td>невролог</td><td>эксперт</td><td>2ГИС</td><td>Герц А.</td></tr>
+      <tr><td>Министерство здравоохранения Алтайского края — главные внештатные специалисты</td><td><span class="pill p-warn">2</span></td><td>медицина</td><td>главный невролог, главный кардиолог, главный по медреабилитации</td><td>эксперт, выход на больницы края</td><td>сайт Минздрава края, раздел «Главные внештатные специалисты»</td><td>Деревцова Ю.</td></tr>
+      <tr><td>Центр спортивной подготовки сборных команд Алтайского края</td><td><span class="pill p-warn">2</span></td><td>спорт</td><td>врач сборной, старший тренер</td><td>интервью, добровольцы-спортсмены</td><td>через Минспорт Алтайского края</td><td>Давыдик Е.</td></tr>
+      <tr><td>Краевая школа олимпийского резерва (свой медцентр)</td><td><span class="pill p-warn">2</span></td><td>спорт</td><td>врач медцентра, тренер</td><td>интервью</td><td>через Минспорт Алтайского края</td><td>Давыдик Е.</td></tr>
+      <tr><td>Фитнес-клубы «Магис Спорт», X-Fit, Барнаул</td><td><span class="pill p-warn">2</span></td><td>спорт, B2B</td><td>управляющий, старший тренер</td><td>интервью: сколько готовы платить</td><td>2ГИС (уже в партнёрах на слайде 8)</td><td>Робертус Т.</td></tr>
+      <tr><td>Профессиональные клубы Барнаула (футбол, хоккей) <span class="q">уточнить</span></td><td><span class="pill p-warn">2</span></td><td>спорт</td><td>врач команды</td><td>интервью: как оценивают восстановление игроков</td><td>сайты клубов</td><td>Робертус Т.</td></tr>
+      <tr><td>Алтайская краевая клиническая психиатрическая больница <span class="q">уточнить</span></td><td><span class="pill p-warn">2</span></td><td>ПТСР</td><td>психиатр, медицинский психолог</td><td>эксперт</td><td>2ГИС</td><td>Богатырева Б.</td></tr>
+      <tr><td>Санатории курорта Белокуриха</td><td><span class="pill p-warn">2</span></td><td>инсульт, сердце (санаторная реабилитация)</td><td>главный врач, невролог</td><td>интервью: будущий B2B-клиент</td><td>сайты санаториев</td><td>Воронцова Э.</td></tr>
+      <tr><td>АлтГПУ — подготовка по физкультуре и спорту <span class="q">уточнить</span></td><td><span class="pill p-warn">2</span></td><td>спорт, наука</td><td>преподаватели физиологии спорта</td><td>эксперт, добровольцы</td><td>сайт АлтГПУ</td><td>Блохина Е.</td></tr>
+      <tr><td>Федерация компьютерного спорта Алтайского края <span class="q">уточнить</span></td><td><span class="pill p-warn">2</span></td><td>киберспорт</td><td>руководитель, капитаны команд</td><td>интервью, добровольцы</td><td>VK</td><td>Давыдик Е.</td></tr>
+      <tr class="group"><td colspan="7">Новосибирск</td></tr>
+      <tr><td>НМИЦ им. академика Е. Н. Мешалкина</td><td><span class="pill p-bad">3</span></td><td>сердце и сосуды</td><td>кардиолог, врач функциональной диагностики</td><td>научный эксперт</td><td>официальный сайт центра</td><td>Воронцова Э.</td></tr>
+      <tr><td>НИИ физиологии и фундаментальной медицины (ФИЦ ФТМ)</td><td><span class="pill p-bad">3</span></td><td>наука, физиология</td><td>научный сотрудник лаборатории ЭЭГ или нейрофизиологии</td><td>научный эксперт по ЭЭГ и NVU</td><td>официальный сайт института</td><td>Герц А.</td></tr>
+      <tr><td>Государственный Новосибирский областной врачебно-физкультурный диспансер</td><td><span class="pill p-bad">3</span></td><td>спорт</td><td>спортивный врач</td><td>интервью, сравнить с Барнаулом</td><td>ул. Гоголя, 3А · +7 (383) 221-45-08 <span class="q">проверить</span></td><td>Робертус Т.</td></tr>
+      <tr><td>Новосибирский областной клинический госпиталь ветеранов войн (№ 3) — кабинет медико-психологической помощи</td><td><span class="pill p-bad">3</span></td><td>ПТСР</td><td>медицинский психолог</td><td>интервью, эксперт</td><td>ул. Демьяна Бедного, 71 · 2ГИС</td><td>Богатырева Б.</td></tr>
+      <tr><td>Новосибирский государственный университет — медицина и психология</td><td><span class="pill p-bad">3</span></td><td>наука</td><td>преподаватели нейрофизиологии</td><td>эксперт</td><td>сайт НГУ</td><td>Блохина Е.</td></tr>
+      <tr><td>Региональный сосудистый центр Новосибирска <span class="q">уточнить, при какой больнице</span></td><td><span class="pill p-bad">3</span></td><td>инсульт</td><td>невролог, реабилитолог</td><td>интервью</td><td>сайт Минздрава Новосибирской области</td><td>Бадиков С.</td></tr>
+      <tr class="group"><td colspan="7">Производители приборов</td></tr>
+      <tr><td>«Нейрософт», Иваново</td><td><span class="pill p-ok">1</span></td><td>оборудование</td><td>техподдержка, отдел продаж</td><td>вход для метки, кабель, КП, интерес к партнёрству</td><td>neurosoft.com</td><td>Пятков М.</td></tr>
+      <tr><td>НПП «ЛАЗМА», Москва</td><td><span class="pill p-ok">1</span></td><td>оборудование</td><td>техподдержка</td><td>программа и формат выгрузки, если CD не найдётся</td><td>lazma.ru</td><td>Блохина Е.</td></tr>
+    </tbody>
+  </table></div>
+  <button class="btn" type="button" data-copy="t-contacts">Скопировать таблицу для Excel</button>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Что сказать в первые 30 секунд</h3>
+      <p>«Здравствуйте, я [имя], студентка/студент института биологии и биотехнологии АлтГУ. Мы делаем проект в университетском акселераторе: ищем объективный способ оценивать утомление и восстановление. Можно ли 20 минут поговорить с вашим [врачом / психологом / тренером] о том, как вы оцениваете это сейчас? Мы ничего не продаём».</p>
+    </div>
+    <div class="card">
+      <h3>После звонка — внести в таблицу</h3>
+      <ul class="checks">
+        <li>дозвонились или нет, с кем говорили</li>
+        <li>дата и формат встречи</li>
+        <li>этап экспертной трубы (раздел 9)</li>
+        <li>резюме интервью — пять строк (раздел 7)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  Гранты: ФСИ «Студенческий стартап» — 1 млн ₽, приём 2026 до 18.03; «Старт-1» — до 4–5 млн ₽ по разным источникам; грант молодым предпринимателям — 100–500 тыс. ₽. Перед подачей сверить условия на fasie.ru и сайтах программ. Цены деталей — ориентир на осень 2026.
+</footer>
+
+<script>
+// подписи колонок для карточного вида на телефоне
+document.querySelectorAll('.stack table').forEach(function(t){
+  var heads=[].map.call(t.querySelectorAll('thead th'),function(th){return th.textContent.trim()});
+  [].forEach.call(t.tBodies[0].rows,function(r){
+    [].forEach.call(r.cells,function(c,i){if(heads[i])c.setAttribute('data-label',heads[i])});
+  });
+});
+document.querySelectorAll('[data-copy]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var t=document.getElementById(b.dataset.copy);
+    var tsv=[].map.call(t.rows,function(r){return [].map.call(r.cells,function(c){return c.innerText.replace(/\s+/g,' ').trim()}).join('\t')}).join('\n');
+    var o=b.textContent;
+    var done=function(){b.textContent='Скопировано';setTimeout(function(){b.textContent=o},1500)};
+    var fallback=function(){var r=document.createRange();r.selectNodeContents(t);var s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Выделено — нажмите Ctrl+C'};
+    try{navigator.clipboard.writeText(tsv).then(done,fallback)}catch(e){fallback()}
+  });
+});
+</script>
+
+</body>
+</html>
